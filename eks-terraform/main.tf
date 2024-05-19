@@ -146,7 +146,7 @@ data "aws_security_group" "selected" {
     role_arn = aws_iam_role.master.arn
 
     vpc_config {
-      subnet_ids = [data.aws_subnet.subnet-1.id]
+      subnet_ids = [data.aws_subnet.subnet-1.id, data.aws_subnet.subnet-2.id]
     }
 
     tags = {
