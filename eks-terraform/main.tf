@@ -91,7 +91,7 @@ resource "aws_eks_node_group" "example" {
 
 remote_access {
       ec2_ssh_key               = "provisioner"
-      source_security_group_ids = [data.aws_security_group.selected.id]
+     
     }
 
 
