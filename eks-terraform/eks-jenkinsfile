@@ -1,46 +1,58 @@
 pipeline {
     agent any
     parameters {
-        string(name: 'ACTION', defaultValue: 'apply', description: 'Terraform action: apply or destroy')    
+        choice(name: 'ACTION', choices: ['apply', 'destroy'], description: 'Choose Terraform action: apply or destroy')
+    }
+    environment {
+        TERRAFORM_DIR = 'eks-terraform' // Define Terraform working directory
     }
     stages {
-        stage('Checkout from Git'){
-            steps{
-                echo 'git checkout'
+        stage('Checkout from Git') {
+            steps {
+                script {
+                    echo 'Checking out Git repository...'
+                    checkout scm
+                }
             }
         }
-        stage('Terraform version'){
-             steps{
-                 sh 'terraform --version'
-             }
-        }
-        stage('Terraform init'){
-             steps{
-                 dir('eks-terraform') {
-                 sh 'terraform init --reconfigure'  
+        stage('Verify Terraform Installation') {
+            steps {
+                script {
+                    echo 'Checking Terraform version...'
+                    sh 'terraform --version || { echo "Terraform not found!"; exit 1; }'
                 }
-             }
+            }
         }
-        stage('Terraform validate'){
-             steps{
-                 dir('eks-terraform') {
-                      sh 'terraform validate'
-                   }
-             }
+        stage('Terraform Init') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    sh 'terraform init --reconfigure'
+                }
+            }
         }
-        stage('Terraform plan'){
-             steps{
-                 dir('eks-terraform') {
-                      sh 'terraform plan'
-                   }
-             }
+        stage('Terraform Validate') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    sh 'terraform validate'
+                }
+            }
         }
-        stage('Terraform apply/destroy'){
-              steps{
-                  dir('eks-terraform') {
-                       sh "terraform ${params.ACTION} -auto-approve"
-                   }
-              }
-         }
+        stage('Terraform Plan') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    sh 'terraform plan'
+                }
+            }
+        }
+        stage('Terraform Apply/Destroy') {
+            when {
+                expression { params.ACTION == 'apply' || params.ACTION == 'destroy' }
+            }
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    sh "terraform ${params.ACTION} -auto-approve"
+                }
+            }
+        }
     }
 }
