@@ -7,7 +7,7 @@ pipeline {
         SCANNER_HOME=tool 'sonar-scanner'
         AWS_ACCOUNT_ID = credentials('Account_ID')
         AWS_ECR_REPO_NAME = credentials('ECR_REPO1')
-        AWS_DEFAULT_REGION = 'ap-south-1'
+        AWS_DEFAULT_REGION = 'us-east-1'  // Consistent region
         REPOSITORY_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/"
     }
     stages {
@@ -58,7 +58,11 @@ pipeline {
             steps {
                 script {
                     dir('Application-Code/frontend') {
-                            sh 'docker build -t ${AWS_ECR_REPO_NAME} .'
+                        // Build Docker image
+                        def buildResult = sh(script: 'docker build -t ${AWS_ECR_REPO_NAME} .', returnStatus: true)
+                        if (buildResult != 0) {
+                            error 'Docker image build failed!'
+                        }
                     }
                 }
             }
@@ -66,15 +70,18 @@ pipeline {
         stage("ECR Image Pushing") {
             steps {
                 script {
-                        sh 'aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 888577041044.dkr.ecr.us-east-1.amazonaws.com
-                        sh 'docker tag ${AWS_ECR_REPO_NAME} ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
-                        sh 'docker push ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
+                    // Login to AWS ECR and push the image
+                    sh """
+                    aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+                    docker tag ${AWS_ECR_REPO_NAME} ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}
+                    docker push ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}
+                    """
                 }
             }
         }
         stage("TRIVY Image Scan") {
             steps {
-                sh 'trivy image ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER} > trivyimage.txt' 
+                sh "trivy image ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER} > trivyimage.txt" 
             }
         }
         stage('Checkout Code') {
@@ -99,7 +106,6 @@ pipeline {
                             git add .
                             git commit -m "Update deployment Image to version \${BUILD_NUMBER}"
                             git push https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-        
                         '''
                     }
                 }
@@ -107,5 +113,3 @@ pipeline {
         }
     }
 }
-     
-         
