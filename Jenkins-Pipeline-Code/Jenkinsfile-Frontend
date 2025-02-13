@@ -102,10 +102,11 @@ pipeline {
                             git config user.name "puttamoses"
                             BUILD_NUMBER=${BUILD_NUMBER}
                             echo $BUILD_NUMBER
+                            git pull --rebase https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} main
                             sed -i "s#image:.*#image: $REPOSITORY_URI$AWS_ECR_REPO_NAME:$BUILD_NUMBER#g" deployment.yaml
                             git add .
                             git commit -m "Update deployment Image to version \${BUILD_NUMBER}"
-                            git push https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                            git push --force https://${git_token}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
                         '''
                     }
                 }
